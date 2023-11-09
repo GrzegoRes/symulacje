@@ -1,0 +1,124 @@
+from math import sqrt
+
+import numpy as np
+from matplotlib import pyplot as plt
+
+G = 10
+
+
+def e_kin(m, vx, vy, vz):
+    return 0.5 * m * (vx**2 + vy**2 + vz**2)
+
+
+def e_pot(m, z):
+    return m * G * z
+
+
+def calculate_velocity_after_bounce(x, y, v_before, k):
+    # x^2 + y^2
+#chane-----------
+    df_dx = 2 * x
+    df_dy = 2 * y
+#----------------
+    N = [-df_dx, -df_dy, 1]
+    n = N / np.linalg.norm(N)
+    return (v_before - 2 * np.dot(v_before, n) * n) * sqrt(k)
+
+
+def simulate(x0, y0, z0, vx0, vy0, vz0, bounce_num=5, k=1.0, m=1.0):
+    results = {
+        'x': [x0],
+        'y': [y0],
+        'z': [z0],
+        'vx': [vx0],
+        'vy': [vy0],
+        'vz': [vz0],
+        'delta_t': [],
+        'e_kin': [e_kin(1, vx0, vy0, vz0)],
+        'e_pot': [e_pot(m, z0)],
+        'e_total': [e_kin(1, vx0, vy0, vz0) + e_pot(m, z0)]
+    }
+
+    #z = x^2 + y^2
+    for i in range(bounce_num):
+        vx = results['vx'][-1]
+        vy = results['vy'][-1]
+        vz = results['vz'][-1]
+
+        x = results['x'][-1]
+        y = results['y'][-1]
+        z = results['z'][-1]
+
+#change-----------------------------
+        a = vx**2 + vy**2 + 0.5*G
+        b = 2*x*vx + 2*y*vy - vz
+        c = x**2 + y**2 - z
+        t = np.max(np.roots([a,b,c]))
+#------------------------------------
+
+
+        results['delta_t'].append(t)
+        results['x'].append(x + vx * t)
+        results['y'].append(y + vy * t)
+        results['z'].append(z + vz * t - 0.5 * G * t**2)
+
+        v_new = calculate_velocity_after_bounce(results['x'][-1], results['y'][-1], np.array([vx, vy, vz - G * t]), k)
+        results['vx'].append(v_new[0])
+        results['vy'].append(v_new[1])
+        results['vz'].append(v_new[2])
+        e_k = e_kin(m, v_new[0], v_new[1], v_new[2]) #* (sqrt(k)**i)
+        e_p = e_pot(m, results['z'][-1]) #* (sqrt(k)**i)
+        results['e_kin'].append(e_k)
+        results['e_pot'].append(e_p)
+        results['e_total'].append(e_k + e_p)
+
+
+    return results
+
+
+def calculate_trajectory(simulation_data):
+    x_points = []
+    y_points = []
+    z_points = []
+    for i in range(len(simulation_data['x']) - 1):
+        t = 0.0
+        vx = simulation_data['vx'][i]
+        vy = simulation_data['vy'][i]
+        vz_begin = simulation_data['vz'][i]
+        while t < simulation_data['delta_t'][i]:
+            x = simulation_data['x'][i] + vx * t
+            y = simulation_data['y'][i] + vy * t
+            z = simulation_data['z'][i] + vz_begin * t - 0.5 * G * t**2
+            x_points.append(x)
+            y_points.append(y)
+            z_points.append(z)
+            t += 0.005
+    return (x_points, y_points, z_points)
+
+def show_results(simulation_data):
+    x = np.linspace(-15, 15, 100)
+    y = np.linspace(-15, 15, 100)
+    X, Y = np.meshgrid(x, y)
+
+    Z = X * 2 + Y * 2
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    ax.plot_surface(X, Y, Z, cmap='viridis', alpha=0.5)
+    points = calculate_trajectory(simulation_data)
+    ax.scatter(points[0], points[1], points[2], c='red', marker='o', s=1)
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+
+    plt.show()
+
+if _name_ == '_main_':
+    #x,y,z
+    results = simulate(x0=-5, y0=0, z0=200, vx0=2, vy0=4, vz0=0, bounce_num=5, k=1.0, m=1.0)
+
+    for key, value in results.items():
+        print(f'{key}: {value}')
+
+    show_results(results)W
